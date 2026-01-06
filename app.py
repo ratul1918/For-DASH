@@ -137,6 +137,265 @@ class Notification(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# Routes
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            user.is_online = True
+            db.session.commit()
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password')
+    
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        user_type = request.form['user_type']
+        phone = request.form.get('phone', '')
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return render_template('register.html')
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists')
+            return render_template('register.html')
+        
+        user = User(username=username, email=email, user_type=user_type, phone=phone)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Registration successful! Please login.')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    current_user.is_online = False
+    db.session.commit()
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    if current_user.user_type == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    elif current_user.user_type == 'rescue_team':
+        return redirect(url_for('rescue_dashboard'))
+    else:
+        return redirect(url_for('user_dashboard'))
+
+@app.route('/user_dashboard')
+@login_required
+def user_dashboard():
+    if current_user.user_type != 'user':
+        return redirect(url_for('dashboard'))
+    
+    # Get recent help requests
+    help_requests = HelpRequest.query.filter_by(user_id=current_user.id).order_by(HelpRequest.created_at.desc()).limit(5).all()
+    
+    # Get recent notifications
+    notifications = Notification.query.filter_by(user_id=current_user.id, is_read=False).order_by(Notification.created_at.desc()).limit(5).all()
+    
+    # Get recent bulletin posts
+    bulletin_posts = BulletinPost.query.order_by(BulletinPost.created_at.desc()).limit(5).all()
+    
+    return render_template('user_dashboard.html', 
+                         help_requests=help_requests,
+                         notifications=notifications,
+                         bulletin_posts=bulletin_posts)
+
+@app.route('/admin_dashboard')
+@login_required
+def admin_dashboard():
+    if current_user.user_type != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    # Analytics data
+    total_users = User.query.count()
+    active_sos = SOSAlert.query.filter_by(status='active').count()
+    pending_requests = HelpRequest.query.filter_by(status='pending').count()
+    available_resources = ResourceOffer.query.filter_by(is_available=True).count()
+    
+    # Recent activity
+    recent_sos = SOSAlert.query.order_by(SOSAlert.created_at.desc()).limit(10).all()
+    recent_requests = HelpRequest.query.order_by(HelpRequest.created_at.desc()).limit(10).all()
+    
+    return render_template('admin_dashboard.html',
+                         total_users=total_users,
+                         active_sos=active_sos,
+                         pending_requests=pending_requests,
+                         available_resources=available_resources,
+                         recent_sos=recent_sos,
+                         recent_requests=recent_requests)
+
+@app.route('/rescue_dashboard')
+@login_required
+def rescue_dashboard():
+    if current_user.user_type != 'rescue_team':
+        return redirect(url_for('dashboard'))
+    
+    # Get active SOS alerts
+    active_sos = SOSAlert.query.filter_by(status='active').order_by(SOSAlert.created_at.desc()).all()
+    
+    # Get high priority help requests
+    urgent_requests = HelpRequest.query.filter(
+        HelpRequest.urgency_level.in_(['high', 'critical']),
+        HelpRequest.status == 'pending'
+    ).order_by(HelpRequest.created_at.desc()).all()
+    
+    return render_template('rescue_dashboard.html',
+                         active_sos=active_sos,
+                         urgent_requests=urgent_requests)
+
+# API Routes
+
+# Socket.IO Events
+@socketio.on('connect')
+def on_connect():
+    if current_user.is_authenticated:
+        if current_user.user_type == 'rescue_team':
+            join_room('rescue_teams')
+        emit('connected', {'user_id': current_user.id, 'username': current_user.username})
+
+@socketio.on('disconnect')
+def on_disconnect():
+    if current_user.is_authenticated:
+        if current_user.user_type == 'rescue_team':
+            leave_room('rescue_teams')
+
+@socketio.on('join_chat')
+def on_join_chat(data):
+    room = data['room']
+    join_room(room)
+    emit('status', {'msg': f'{current_user.username} joined the chat'}, room=room)
+
+@socketio.on('leave_chat')
+def on_leave_chat(data):
+    room = data['room']
+    leave_room(room)
+    emit('status', {'msg': f'{current_user.username} left the chat'}, room=room)
+
+@socketio.on('send_message')
+def on_send_message(data):
+    room = data['room']
+    message = data['message']
+    
+    # Save message to database
+    chat_message = ChatMessage(
+        sender_id=current_user.id,
+        room_id=room,
+        message=message
+    )
+    db.session.add(chat_message)
+    db.session.commit()
+    
+    emit('new_message', {
+        'id': chat_message.id,
+        'sender': current_user.username,
+        'message': message,
+        'timestamp': chat_message.created_at.isoformat()
+    }, room=room)
+
+# AI Chat Assistant
+@app.route('/api/ai_chat', methods=['POST'])
+@login_required
+def ai_chat():
+    data = request.get_json()
+    user_message = data.get('message', '')
+    
+    # Simple AI responses for emergency queries
+    emergency_keywords = ['emergency', 'help', 'sos', 'danger', 'fire', 'flood', 'earthquake', 'medical']
+    
+    if any(keyword in user_message.lower() for keyword in emergency_keywords):
+        response = "This appears to be an emergency. Please use the SOS button immediately or call emergency services. For immediate help, use the SOS feature in the app."
+    else:
+        response = "I'm here to help with disaster assistance information. How can I assist you today?"
+    
+    return jsonify({'response': response})
+
+# Bulletin Board Route
+@app.route('/bulletin')
+@login_required
+def bulletin_board():
+    posts = BulletinPost.query.order_by(BulletinPost.created_at.desc()).all()
+    return render_template('bulletin_board.html', posts=posts)
+
+# All Requests Route for Rescue Teams
+@app.route('/all_requests')
+@login_required
+def all_requests():
+    if current_user.user_type != 'rescue_team':
+        return redirect(url_for('dashboard'))
+    
+    # Get all help requests
+    all_help_requests = HelpRequest.query.order_by(HelpRequest.created_at.desc()).all()
+    
+    return render_template('all_requests.html', requests=all_help_requests)
+
+
+# Send Notification Route
+@app.route('/api/send_notification', methods=['POST'])
+@login_required
+def send_notification():
+    if current_user.user_type != 'admin':
+        return jsonify({'status': 'error', 'message': 'Unauthorized'})
+    
+    data = request.get_json()
+    target = data.get('target', 'all')
+    
+    # Determine target users
+    if target == 'all':
+        users = User.query.all()
+    elif target == 'users':
+        users = User.query.filter_by(user_type='user').all()
+    elif target == 'rescue_teams':
+        users = User.query.filter_by(user_type='rescue_team').all()
+    else:
+        users = User.query.all()
+    
+    # Create notifications for all target users
+    for user in users:
+        notification = Notification(
+            user_id=user.id,
+            title=data.get('title'),
+            message=data.get('message'),
+            notification_type=data.get('notification_type')
+        )
+        db.session.add(notification)
+    
+    db.session.commit()
+    
+    # Send real-time notification to all target users
+    socketio.emit('new_notification', {
+        'title': data.get('title'),
+        'message': data.get('message'),
+        'notification_type': data.get('notification_type'),
+        'timestamp': datetime.now().isoformat()
+    })
+    
+    return jsonify({'status': 'success'})
 
 if __name__ == '__main__':
     with app.app_context():
