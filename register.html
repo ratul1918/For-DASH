@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Register - DASH{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-header text-center">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>Join DASH
+                    </h3>
+                    <p class="text-muted mt-2">Create your disaster assistance account</p>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="username" name="username" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-envelope"></i>
+                                    </span>
+                                    <input type="email" class="form-control" id="email" name="email" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number (Optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-phone"></i>
+                                </span>
+                                <input type="tel" class="form-control" id="phone" name="phone">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="user_type" class="form-label">Account Type</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-user-tag"></i>
+                                </span>
+                                <select class="form-select" id="user_type" name="user_type" required>
+                                    <option value="">Select account type</option>
+                                    <option value="user">General User</option>
+                                    <option value="rescue_team">Rescue Team Member</option>
+                                </select>
+                            </div>
+                            <div class="form-text">
+                                <small>
+                                    <strong>General User:</strong> Request help and access resources<br>
+                                    <strong>Rescue Team:</strong> Respond to emergencies and manage missions
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-3">Already have an account?</p>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Account Type Info -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Account Types</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="account-type p-3 border rounded mb-3">
+                                <h6 class="text-primary"><i class="fas fa-user me-2"></i>General User</h6>
+                                <ul class="small mb-0">
+                                    <li>Request emergency assistance</li>
+                                    <li>Access community resources</li>
+                                    <li>Use SOS emergency button</li>
+                                    <li>Participate in community chat</li>
+                                    <li>View bulletin board updates</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="account-type p-3 border rounded mb-3">
+                                <h6 class="text-warning"><i class="fas fa-helicopter me-2"></i>Rescue Team</h6>
+                                <ul class="small mb-0">
+                                    <li>Respond to SOS alerts</li>
+                                    <li>Manage emergency missions</li>
+                                    <li>Coordinate rescue operations</li>
+                                    <li>Access rescue dashboard</li>
+                                    <li>Update mission status</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

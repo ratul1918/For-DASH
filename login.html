@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Login - DASH{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg">
+                <div class="card-header text-center d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="mb-0">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login to DASH
+                        </h3>
+                        <p class="text-muted mt-2">Access your disaster assistance account</p>
+                    </div>
+                    
+                    <!-- 3 Dots Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-light btn-sm" type="button" id="demoMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="demoMenu">
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="toggleDemo()">
+                                    <i class="fas fa-info-circle me-2"></i>Show Demo Accounts
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-user"></i>
+                                </span>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-3">Don't have an account?</p>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demo Accounts (Initially Hidden) -->
+            <div id="demo-accounts" class="card mt-4 d-none">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Demo Accounts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <div class="demo-account p-2 border rounded">
+                                <strong class="text-primary">Admin:</strong> admin / admin123
+                                <button class="btn btn-sm btn-outline-primary ms-2" onclick="fillLogin('admin', 'admin123')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="demo-account p-2 border rounded">
+                                <strong class="text-success">User:</strong> user1 / user123
+                                <button class="btn btn-sm btn-outline-success ms-2" onclick="fillLogin('user1', 'user123')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="demo-account p-2 border rounded">
+                                <strong class="text-warning">Rescue:</strong> rescue1 / rescue123
+                                <button class="btn btn-sm btn-outline-warning ms-2" onclick="fillLogin('rescue1', 'rescue123')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function fillLogin(username, password) {
+        document.getElementById('username').value = username;
+        document.getElementById('password').value = password;
+    }
+
+    function toggleDemo() {
+        const demo = document.getElementById('demo-accounts');
+        demo.classList.toggle('d-none');
+    }
+</script>
+{% endblock %}
