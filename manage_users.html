@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Users - DASH{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2">
+                                <i class="fas fa-users me-2"></i>User Management
+                            </h2>
+                            <p class="mb-0">Manage all users and rescue team members in the system</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-light" onclick="refreshUsers()">
+                                <i class="fas fa-sync-alt me-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Filter by Type</label>
+                            <select class="form-select" id="typeFilter" onchange="filterUsers()">
+                                <option value="">All Types</option>
+                                <option value="user">General Users</option>
+                                <option value="rescue_team">Rescue Teams</option>
+                                <option value="admin">Admins</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Filter by Status</label>
+                            <select class="form-select" id="statusFilter" onchange="filterUsers()">
+                                <option value="">All Status</option>
+                                <option value="online">Online</option>
+                                <option value="offline">Offline</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Search by username, email, or phone..." onkeyup="filterUsers()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>All Users
+                        <span class="badge bg-primary ms-2" id="userCount">{{ users|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="usersTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>User</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Contact</th>
+                                        <th>Joined</th>
+                                        <th>Activity</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr class="user-row" 
+                                        data-type="{{ user.user_type }}" 
+                                        data-status="{% if user.is_online %}online{% else %}offline{% endif %}"
+                                        data-username="{{ user.username }}"
+                                        data-email="{{ user.email }}"
+                                        data-phone="{{ user.phone or '' }}">
+                                        <td>
+                                            <strong>#{{ user.id }}</strong>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar bg-{% if user.user_type == 'admin' %}danger{% elif user.user_type == 'rescue_team' %}warning{% else %}primary{% endif %} text-white rounded-circle me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                                    {{ user.username[0].upper() }}
+                                                </div>
+                                                <div>
+                                                    <strong>{{ user.username }}</strong>
+                                                    <br><small class="text-muted">{{ user.email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if user.user_type == 'admin' %}danger{% elif user.user_type == 'rescue_team' %}warning{% else %}primary{% endif %}">
+                                                {{ user.user_type.replace('_', ' ').title() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if user.is_online %}success{% else %}secondary{% endif %}">
+                                                {% if user.is_online %}Online{% else %}Offline{% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if user.phone %}
+                                                <i class="fas fa-phone me-1"></i>{{ user.phone }}
+                                            {% else %}
+                                                <span class="text-muted">No phone</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ user.created_at.strftime('%m/%d/%Y') }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="activity-stats">
+                                                <small class="text-muted">
+                                                    SOS: {{ user.sos_alerts|length }} | 
+                                                    Requests: {{ user.help_requests|length }} | 
+                                                    Resources: {{ user.resource_offers|length }}
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="viewUserDetails({{ user.id }})" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" onclick="viewUserActivity({{ user.id }})" title="View Activity">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </button>
+                                                {% if user.user_type != 'admin' %}
+                                                <button class="btn btn-sm btn-outline-warning" onclick="editUser({{ user.id }})" title="Edit User">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Users Found</h5>
+                            <p class="text-muted">No users have been registered yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Details Modal -->
+<div class="modal fade" id="userDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user me-2"></i>User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Activity Modal -->
+<div class="modal fade" id="userActivityModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-chart-line me-2"></i>User Activity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userActivityContent">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function filterUsers() {
+        const typeFilter = document.getElementById('typeFilter').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        
+        const rows = document.querySelectorAll('.user-row');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const type = row.dataset.type.toLowerCase();
+            const status = row.dataset.status.toLowerCase();
+            const username = row.dataset.username.toLowerCase();
+            const email = row.dataset.email.toLowerCase();
+            const phone = row.dataset.phone.toLowerCase();
+            
+            const typeMatch = !typeFilter || type.includes(typeFilter);
+            const statusMatch = !statusFilter || status.includes(statusFilter);
+            const searchMatch = !searchInput || username.includes(searchInput) || email.includes(searchInput) || phone.includes(searchInput);
+            
+            if (typeMatch && statusMatch && searchMatch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('userCount').textContent = visibleCount;
+    }
+
+    function refreshUsers() {
+        location.reload();
+    }
+
+    function viewUserDetails(userId) {
+        fetch(`/api/user_details/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                const content = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>User Information</h6>
+                            <p><strong>ID:</strong> #${data.user.id}</p>
+                            <p><strong>Username:</strong> ${data.user.username}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <p><strong>Type:</strong> <span class="badge bg-primary">${data.user.user_type.replace('_', ' ').title()}</span></p>
+                            <p><strong>Phone:</strong> ${data.user.phone || 'Not provided'}</p>
+                            <p><strong>Status:</strong> <span class="badge bg-${data.user.is_online ? 'success' : 'secondary'}">${data.user.is_online ? 'Online' : 'Offline'}</span></p>
+                            <p><strong>Joined:</strong> ${new Date(data.user.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Recent Activity</h6>
+                            <div class="activity-summary">
+                                <p><strong>SOS Alerts:</strong> ${data.sos_alerts.length}</p>
+                                <p><strong>Help Requests:</strong> ${data.help_requests.length}</p>
+                                <p><strong>Resource Offers:</strong> ${data.resource_offers.length}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('userDetailsContent').innerHTML = content;
+                new bootstrap.Modal(document.getElementById('userDetailsModal')).show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load user details.');
+            });
+    }
+
+    function viewUserActivity(userId) {
+        fetch(`/api/user_details/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                const content = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">SOS Alerts (${data.sos_alerts.length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    ${data.sos_alerts.length > 0 ? 
+                                        data.sos_alerts.map(alert => `
+                                            <div class="alert alert-${alert.status === 'active' ? 'danger' : 'success'} p-2 mb-2">
+                                                <small><strong>#${alert.id}</strong> - ${alert.status}</small><br>
+                                                <small>${new Date(alert.created_at).toLocaleString()}</small>
+                                            </div>
+                                        `).join('') : 
+                                        '<p class="text-muted">No SOS alerts</p>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Help Requests (${data.help_requests.length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    ${data.help_requests.length > 0 ? 
+                                        data.help_requests.map(req => `
+                                            <div class="alert alert-info p-2 mb-2">
+                                                <small><strong>#${req.id}</strong> - ${req.request_type}</small><br>
+                                                <small>${req.urgency_level} - ${req.status}</small><br>
+                                                <small>${new Date(req.created_at).toLocaleString()}</small>
+                                            </div>
+                                        `).join('') : 
+                                        '<p class="text-muted">No help requests</p>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Resource Offers (${data.resource_offers.length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    ${data.resource_offers.length > 0 ? 
+                                        data.resource_offers.map(offer => `
+                                            <div class="alert alert-success p-2 mb-2">
+                                                <small><strong>#${offer.id}</strong> - ${offer.resource_type}</small><br>
+                                                <small>${offer.is_available ? 'Available' : 'Unavailable'}</small><br>
+                                                <small>${new Date(offer.created_at).toLocaleString()}</small>
+                                            </div>
+                                        `).join('') : 
+                                        '<p class="text-muted">No resource offers</p>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('userActivityContent').innerHTML = content;
+                new bootstrap.Modal(document.getElementById('userActivityModal')).show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load user activity.');
+            });
+    }
+
+    function editUser(userId) {
+        alert(`Edit user functionality for user ID: ${userId}`);
+    }
+</script>
+{% endblock %}
