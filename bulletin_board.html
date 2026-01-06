@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Bulletin Board - DASH{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">
+                        <i class="fas fa-bullhorn me-2"></i>Community Bulletin Board
+                    </h3>
+                    {% if current_user.user_type == 'admin' %}
+                    <button class="btn btn-primary" onclick="openCreatePostModal()">
+                        <i class="fas fa-plus me-2"></i>Create Post
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Stay informed with the latest updates, announcements, and emergency information from authorities.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if posts %}
+                {% for post in posts %}
+                <div class="card mb-3 bulletin-post {{ post.priority }}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="card-title mb-1">{{ post.title }}</h5>
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>{{ post.author.username }} • 
+                                    <i class="fas fa-clock me-1"></i>{{ post.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                </small>
+                            </div>
+                            <div>
+                                <span class="badge bg-{% if post.priority == 'urgent' %}danger{% elif post.priority == 'high' %}warning{% elif post.priority == 'normal' %}info{% else %}secondary{% endif %}">
+                                    {{ post.priority.title() }}
+                                </span>
+                                <span class="badge bg-primary ms-1">{{ post.post_type.title() }}</span>
+                            </div>
+                        </div>
+                        <p class="card-text">{{ post.content }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Posts Available</h5>
+                    <p class="text-muted">No bulletin posts have been created yet.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Post Modal (Admin Only) -->
+{% if current_user.user_type == 'admin' %}
+<div class="modal fade" id="createPostModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Create Bulletin Post</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createPostForm">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" id="postTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Post Type</label>
+                        <select class="form-select" id="postType" required>
+                            <option value="">Select type</option>
+                            <option value="announcement">Announcement</option>
+                            <option value="warning">Warning</option>
+                            <option value="instruction">Instruction</option>
+                            <option value="update">Update</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" id="postPriority" required>
+                            <option value="">Select priority</option>
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <textarea class="form-control" id="postContent" rows="4" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createPost()">Create Post</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openCreatePostModal() {
+        new bootstrap.Modal(document.getElementById('createPostModal')).show();
+    }
+
+    function createPost() {
+        const data = {
+            title: document.getElementById('postTitle').value,
+            post_type: document.getElementById('postType').value,
+            priority: document.getElementById('postPriority').value,
+            content: document.getElementById('postContent').value
+        };
+
+        if (!data.title || !data.post_type || !data.priority || !data.content) {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        fetch('/api/create_bulletin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Bulletin post created successfully!');
+                bootstrap.Modal.getInstance(document.getElementById('createPostModal')).hide();
+                location.reload();
+            } else {
+                alert('Failed to create post. Please try again.');
+            }
+        });
+    }
+
+    // Listen for real-time bulletin updates
+    socket.on('new_bulletin_post', function(data) {
+        // Show notification
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            <strong>New Bulletin Post:</strong> ${data.title}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    });
+</script>
+{% endblock %}
