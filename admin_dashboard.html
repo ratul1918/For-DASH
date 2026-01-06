@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - DASH{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2">
+                                <i class="fas fa-cog me-2"></i>Admin Dashboard
+                            </h2>
+                            <p class="mb-0">Welcome, {{ current_user.username }}! Monitor system analytics and manage operations.</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="admin-actions">
+                                <button class="btn btn-light me-2" onclick="refreshData()">
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                                </button>
+                                <button class="btn btn-outline-light" onclick="exportData()">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ total_users }}</div>
+                <div class="stat-label">Total Users</div>
+                <div class="stat-icon">
+                    <i class="fas fa-users text-primary"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ active_sos }}</div>
+                <div class="stat-label">Active SOS Alerts</div>
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle text-danger"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ pending_requests }}</div>
+                <div class="stat-label">Pending Requests</div>
+                <div class="stat-icon">
+                    <i class="fas fa-clock text-warning"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ available_resources }}</div>
+                <div class="stat-label">Available Resources</div>
+                <div class="stat-icon">
+                    <i class="fas fa-box text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Recent SOS Alerts -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Recent SOS Alerts</h5>
+                            <button class="btn btn-sm btn-primary" onclick="viewAllSOS()">
+                                <i class="fas fa-list me-1"></i>View All
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_sos %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Time</th>
+                                                <th>User</th>
+                                                <th>Status</th>
+                                                <th>Message</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for sos in recent_sos %}
+                                            <tr class="{% if sos.status == 'active' %}table-danger{% elif sos.status == 'responded' %}table-warning{% else %}table-success{% endif %}">
+                                                <td>
+                                                    <small>{{ sos.created_at.strftime('%m/%d %H:%M') }}</small>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ sos.user.username }}</strong>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if sos.status == 'active' %}danger{% elif sos.status == 'responded' %}warning{% else %}success{% endif %}">
+                                                        {{ sos.status.title() }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ sos.message[:50] }}{% if sos.message|length > 50 %}...{% endif %}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewSOSDetails({{ sos.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" onclick="resolveSOS({{ sos.id }})">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                                    <h5 class="text-success">No Recent SOS Alerts</h5>
+                                    <p class="text-muted">System is running smoothly with no emergency alerts.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Help Requests -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-hands-helping me-2"></i>Recent Help Requests</h5>
+                            <button class="btn btn-sm btn-primary" onclick="viewAllRequests()">
+                                <i class="fas fa-list me-1"></i>View All
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_requests %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Time</th>
+                                                <th>User</th>
+                                                <th>Type</th>
+                                                <th>Urgency</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for request in recent_requests %}
+                                            <tr>
+                                                <td>
+                                                    <small>{{ request.created_at.strftime('%m/%d %H:%M') }}</small>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ request.user.username }}</strong>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-primary">{{ request.request_type.title() }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if request.urgency_level == 'critical' %}danger{% elif request.urgency_level == 'high' %}warning{% else %}info{% endif %}">
+                                                        {{ request.urgency_level.title() }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if request.status == 'completed' %}success{% elif request.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                                        {{ request.status.replace('_', ' ').title() }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewRequestDetails({{ request.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" onclick="assignRequest({{ request.id }})">
+                                                        <i class="fas fa-user-check"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Recent Help Requests</h5>
+                                    <p class="text-muted">No help requests have been submitted recently.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- System Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-server me-2"></i>System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="status-item d-flex justify-content-between align-items-center mb-3">
+                        <span>Database</span>
+                        <span class="badge bg-success">Online</span>
+                    </div>
+                    <div class="status-item d-flex justify-content-between align-items-center mb-3">
+                        <span>Location Services</span>
+                        <span class="badge bg-success">Active</span>
+                    </div>
+                    <div class="status-item d-flex justify-content-between align-items-center mb-3">
+                        <span>Notification System</span>
+                        <span class="badge bg-success">Running</span>
+                    </div>
+                    <div class="status-item d-flex justify-content-between align-items-center mb-3">
+                        <span>Chat System</span>
+                        <span class="badge bg-success">Online</span>
+                    </div>
+                    <div class="status-item d-flex justify-content-between align-items-center">
+                        <span>Rescue Teams</span>
+                        <span class="badge bg-warning">2 Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="createBulletinPost()">
+                            <i class="fas fa-bullhorn me-2"></i>Create Bulletin Post
+                        </button>
+                        <button class="btn btn-success" onclick="sendNotification()">
+                            <i class="fas fa-bell me-2"></i>Send Notification
+                        </button>
+                        <button class="btn btn-info" onclick="viewAnalytics()">
+                            <i class="fas fa-chart-line me-2"></i>View Analytics
+                        </button>
+                        <button class="btn btn-warning" onclick="manageUsers()">
+                            <i class="fas fa-users me-2"></i>Manage Users
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Activity -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>User Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="activity-item mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Online Users</span>
+                            <strong class="text-success">15</strong>
+                        </div>
+                        <div class="progress mt-1" style="height: 5px;">
+                            <div class="progress-bar bg-success" style="width: 75%"></div>
+                        </div>
+                    </div>
+                    <div class="activity-item mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Active Sessions</span>
+                            <strong class="text-info">23</strong>
+                        </div>
+                        <div class="progress mt-1" style="height: 5px;">
+                            <div class="progress-bar bg-info" style="width: 60%"></div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between">
+                            <span>Rescue Teams</span>
+                            <strong class="text-warning">2</strong>
+                        </div>
+                        <div class="progress mt-1" style="height: 5px;">
+                            <div class="progress-bar bg-warning" style="width: 40%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Alerts -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>System Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>System Update:</strong> Database backup completed successfully.
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Maintenance:</strong> Scheduled maintenance in 2 hours.
+                    </div>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>All Systems:</strong> Operating normally.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulletin Post Modal -->
+<div class="modal fade" id="bulletinModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-bullhorn me-2"></i>Create Bulletin Post</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulletinForm">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" id="bulletinTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Post Type</label>
+                        <select class="form-select" id="bulletinType" required>
+                            <option value="">Select type</option>
+                            <option value="announcement">Announcement</option>
+                            <option value="warning">Warning</option>
+                            <option value="instruction">Instruction</option>
+                            <option value="update">Update</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" id="bulletinPriority" required>
+                            <option value="">Select priority</option>
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <textarea class="form-control" id="bulletinContent" rows="4" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitBulletinPost()">Create Post</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-bell me-2"></i>Send Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="notificationForm">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" id="notificationTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" id="notificationMessage" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" id="notificationType" required>
+                            <option value="">Select type</option>
+                            <option value="weather">Weather Alert</option>
+                            <option value="roadblock">Road Block</option>
+                            <option value="medical_camp">Medical Camp</option>
+                            <option value="evacuation">Evacuation Notice</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Target Users</label>
+                        <select class="form-select" id="notificationTarget">
+                            <option value="all">All Users</option>
+                            <option value="users">General Users Only</option>
+                            <option value="rescue_teams">Rescue Teams Only</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitNotification()">Send Notification</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Admin functions
+    function refreshData() {
+        location.reload();
+    }
+
+    function exportData() {
+        // Show loading state
+        const exportBtn = event.target;
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+        exportBtn.disabled = true;
+        
+        fetch('/api/export_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Create download link for PDF
+                    const link = document.createElement('a');
+                    link.href = 'data:application/pdf;base64,' + data.pdf_data;
+                    link.download = 'dash_export_' + new Date().toISOString().split('T')[0] + '.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('Data exported successfully!');
+                } else {
+                    alert('Failed to export data. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error exporting data. Please try again.');
+            })
+            .finally(() => {
+                // Reset button state
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            });
+    }
+
+    function viewAllSOS() {
+        alert('Viewing all SOS alerts...');
+    }
+
+    function viewAllRequests() {
+        alert('Viewing all help requests...');
+    }
+
+    function viewSOSDetails(sosId) {
+        alert(`Viewing SOS details for ID: ${sosId}`);
+    }
+
+    function resolveSOS(sosId) {
+        if (confirm('Mark this SOS alert as resolved?')) {
+            alert('SOS alert resolved!');
+        }
+    }
+
+    function viewRequestDetails(requestId) {
+        alert(`Viewing request details for ID: ${requestId}`);
+    }
+
+    function assignRequest(requestId) {
+        alert(`Assigning request ID: ${requestId}`);
+    }
+
+    function createBulletinPost() {
+        new bootstrap.Modal(document.getElementById('bulletinModal')).show();
+    }
+
+    function sendNotification() {
+        new bootstrap.Modal(document.getElementById('notificationModal')).show();
+    }
+
+    function viewAnalytics() {
+        alert('Opening analytics dashboard...');
+    }
+
+    function manageUsers() {
+        window.location.href = '/manage_users';
+    }
+
+
+
+    function submitNotification() {
+        const data = {
+            title: document.getElementById('notificationTitle').value,
+            message: document.getElementById('notificationMessage').value,
+            notification_type: document.getElementById('notificationType').value,
+            target: document.getElementById('notificationTarget').value
+        };
+
+        if (!data.title || !data.message || !data.notification_type) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+
+        fetch('/api/send_notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Notification sent successfully!');
+                bootstrap.Modal.getInstance(document.getElementById('notificationModal')).hide();
+                // Clear form
+                document.getElementById('notificationForm').reset();
+            } else {
+                alert('Failed to send notification. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error sending notification. Please try again.');
+        });
+    }
+</script>
+{% endblock %}
