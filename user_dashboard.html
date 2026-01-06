@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+
+{% block title %}User Dashboard - DASH{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2">
+                                <i class="fas fa-user me-2"></i>Welcome, {{ current_user.username }}!
+                            </h2>
+                            <p class="mb-0">Stay safe and connected with DASH emergency services</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="location-status">
+                                <i class="fas fa-map-marker-alt me-2"></i>
+                                <span id="location-status">Getting location...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Quick Actions -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-primary w-100 h-100" onclick="openHelpRequestModal()">
+                                        <i class="fas fa-hands-helping fa-2x mb-2"></i><br>
+                                        Request Help
+                                    </button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-success w-100 h-100" onclick="openResourceOfferModal()">
+                                        <i class="fas fa-share-alt fa-2x mb-2"></i><br>
+                                        Offer Resources
+                                    </button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-info w-100 h-100" onclick="openChatModal()">
+                                        <i class="fas fa-comments fa-2x mb-2"></i><br>
+                                        Live Chat
+                                    </button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-warning w-100 h-100" onclick="viewBulletinBoard()">
+                                        <i class="fas fa-bullhorn fa-2x mb-2"></i><br>
+                                        Bulletin Board
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-map me-2"></i>Emergency Map</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="map" class="map-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Help Requests -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>My Recent Requests</h5>
+                            <button class="btn btn-sm btn-primary" onclick="openHelpRequestModal()">
+                                <i class="fas fa-plus me-1"></i>New Request
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if help_requests %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Urgency</th>
+                                                <th>Status</th>
+                                                <th>Created</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for request in help_requests %}
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-primary">{{ request.request_type.title() }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if request.urgency_level == 'critical' %}danger{% elif request.urgency_level == 'high' %}warning{% else %}info{% endif %}">
+                                                        {{ request.urgency_level.title() }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if request.status == 'completed' %}success{% elif request.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                                        {{ request.status.replace('_', ' ').title() }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ request.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewRequest({{ request.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No help requests yet. Create your first request to get started.</p>
+                                    <button class="btn btn-primary" onclick="openHelpRequestModal()">
+                                        <i class="fas fa-plus me-2"></i>Create Request
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Notifications -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Notifications</h5>
+                    <span class="badge bg-danger">{{ notifications|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        {% for notification in notifications %}
+                        <div class="notification-item p-2 border-bottom">
+                            <h6 class="mb-1">{{ notification.title }}</h6>
+                            <p class="small text-muted mb-1">{{ notification.message }}</p>
+                            <small class="text-muted">{{ notification.created_at.strftime('%H:%M') }}</small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                            <p class="text-muted small">No new notifications</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Bulletin Board -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bullhorn me-2"></i>Latest Updates</h5>
+                </div>
+                <div class="card-body">
+                    {% if bulletin_posts %}
+                        {% for post in bulletin_posts %}
+                        <div class="bulletin-post {{ post.priority }}">
+                            <h6 class="mb-2">{{ post.title }}</h6>
+                            <p class="small mb-2">{{ post.content[:100] }}{% if post.content|length > 100 %}...{% endif %}</p>
+                            <small class="text-muted">{{ post.created_at.strftime('%m/%d %H:%M') }}</small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-newspaper fa-2x text-muted mb-2"></i>
+                            <p class="text-muted small">No updates available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Emergency Contacts -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-phone me-2"></i>Emergency Contacts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="emergency-contact">
+                        <strong>Emergency Services</strong><br>
+                        <a href="tel:911" class="btn btn-sm btn-danger mt-1">
+                            <i class="fas fa-phone me-1"></i>911
+                        </a>
+                    </div>
+                    <hr>
+                    <div class="emergency-contact">
+                        <strong>Local Emergency</strong><br>
+                        <a href="tel:311" class="btn btn-sm btn-warning mt-1">
+                            <i class="fas fa-phone me-1"></i>311
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Request Modal -->
+<div class="modal fade" id="helpRequestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-hands-helping me-2"></i>Request Help</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="helpRequestForm">
+                    <div class="mb-3">
+                        <label class="form-label">Request Type</label>
+                        <select class="form-select" id="requestType" required>
+                            <option value="">Select type</option>
+                            <option value="food">Food</option>
+                            <option value="shelter">Shelter</option>
+                            <option value="water">Water</option>
+                            <option value="medical">Medical Help</option>
+                            <option value="evacuation">Evacuation</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Urgency Level</label>
+                        <select class="form-select" id="urgencyLevel" required>
+                            <option value="">Select urgency</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="3" placeholder="Describe your needs..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitHelpRequest()">Submit Request</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Offer Modal -->
+<div class="modal fade" id="resourceOfferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-share-alt me-2"></i>Offer Resources</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="resourceOfferForm">
+                    <div class="mb-3">
+                        <label class="form-label">Resource Type</label>
+                        <select class="form-select" id="resourceType" required>
+                            <option value="">Select type</option>
+                            <option value="shelter">Shelter</option>
+                            <option value="food">Food</option>
+                            <option value="transport">Transport</option>
+                            <option value="supplies">Supplies</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity/Details</label>
+                        <input type="text" class="form-control" id="quantity" placeholder="e.g., 2 rooms, 5 meals, etc.">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="resourceDescription" rows="3" placeholder="Describe what you can offer..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitResourceOffer()">Offer Resource</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Modal -->
+<div class="modal fade" id="chatModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-comments me-2"></i>Live Chat Support</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="text-center py-4">
+                            <i class="fas fa-comments fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">Start a conversation...</p>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="chatInput" placeholder="Type your message...">
+                            <button class="btn btn-primary" onclick="sendChatMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<script>
+    let map;
+    let userLocation = null;
+
+    // Initialize map
+    function initMap() {
+        map = L.map('map').setView([40.7128, -74.0060], 10); // Default to NYC
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Get user location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                userLocation = [position.coords.latitude, position.coords.longitude];
+                map.setView(userLocation, 13);
+                
+                // Add user marker
+                L.marker(userLocation).addTo(map)
+                    .bindPopup('Your Location')
+                    .openPopup();
+                
+                // Update location status
+                document.getElementById('location-status').textContent = 'Location updated';
+                
+                // Update location in backend
+                updateLocation(userLocation[0], userLocation[1]);
+                
+                // Load map data
+                loadMapData();
+            });
+        }
+    }
+
+    function updateLocation(lat, lng) {
+        fetch('/api/update_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ lat: lat, lng: lng })
+        });
+    }
+
+    function loadMapData() {
+        fetch('/api/get_map_data')
+            .then(response => response.json())
+            .then(data => {
+                // Add SOS alerts
+                data.sos_alerts.forEach(alert => {
+                    L.marker([alert.lat, alert.lng])
+                        .addTo(map)
+                        .bindPopup(`<strong>SOS Alert</strong><br>${alert.message}`)
+                        .setIcon(L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        }));
+                });
+
+                // Add help requests
+                data.help_requests.forEach(request => {
+                    const color = request.urgency === 'critical' ? 'red' : 
+                                 request.urgency === 'high' ? 'orange' : 'blue';
+                    L.marker([request.lat, request.lng])
+                        .addTo(map)
+                        .bindPopup(`<strong>${request.type}</strong><br>${request.description}`)
+                        .setIcon(L.icon({
+                            iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        }));
+                });
+
+                // Add resources
+                data.resources.forEach(resource => {
+                    L.marker([resource.lat, resource.lng])
+                        .addTo(map)
+                        .bindPopup(`<strong>${resource.type}</strong><br>${resource.description}`)
+                        .setIcon(L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        }));
+                });
+            });
+    }
+
+    // Modal functions
+    function openHelpRequestModal() {
+        new bootstrap.Modal(document.getElementById('helpRequestModal')).show();
+    }
+
+    function openResourceOfferModal() {
+        new bootstrap.Modal(document.getElementById('resourceOfferModal')).show();
+    }
+
+    function openChatModal() {
+        new bootstrap.Modal(document.getElementById('chatModal')).show();
+    }
+
+    function viewBulletinBoard() {
+        // Redirect to bulletin board page
+        window.location.href = '/bulletin';
+    }
+
+    // Form submission functions
+    function submitHelpRequest() {
+        if (!userLocation) {
+            alert('Please allow location access to create a help request.');
+            return;
+        }
+
+        const data = {
+            request_type: document.getElementById('requestType').value,
+            urgency_level: document.getElementById('urgencyLevel').value,
+            description: document.getElementById('description').value,
+            lat: userLocation[0],
+            lng: userLocation[1]
+        };
+
+        fetch('/api/create_help_request', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Help request submitted successfully!');
+                bootstrap.Modal.getInstance(document.getElementById('helpRequestModal')).hide();
+                location.reload();
+            } else {
+                alert('Failed to submit help request. Please try again.');
+            }
+        });
+    }
+
+    function submitResourceOffer() {
+        if (!userLocation) {
+            alert('Please allow location access to offer resources.');
+            return;
+        }
+
+        const data = {
+            resource_type: document.getElementById('resourceType').value,
+            description: document.getElementById('resourceDescription').value,
+            quantity: document.getElementById('quantity').value,
+            lat: userLocation[0],
+            lng: userLocation[1]
+        };
+
+        fetch('/api/offer_resource', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Resource offer submitted successfully!');
+                bootstrap.Modal.getInstance(document.getElementById('resourceOfferModal')).hide();
+                location.reload();
+            } else {
+                alert('Failed to submit resource offer. Please try again.');
+            }
+        });
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        
+        if (message) {
+            // Add message to chat
+            addChatMessage('You', message, true);
+            input.value = '';
+            
+            // Send to AI assistant
+            fetch('/api/ai_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                addChatMessage('AI Assistant', data.response, false);
+            });
+        }
+    }
+
+    function addChatMessage(sender, message, isSent) {
+        const chatMessages = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+        messageDiv.innerHTML = `
+            <strong>${sender}:</strong> ${message}
+            <small class="d-block text-muted">${new Date().toLocaleTimeString()}</small>
+        `;
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Initialize map when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+        
+        // Request location permission immediately
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    console.log('Location access granted');
+                },
+                function(error) {
+                    console.log('Location access denied:', error);
+                    alert('Please enable location access for full functionality.');
+                }
+            );
+        }
+        
+        // Listen for real-time updates
+        socket.on('new_bulletin_post', function(data) {
+            // Show notification
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                <strong>New Bulletin Post:</strong> ${data.title}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        });
+        
+        socket.on('new_notification', function(data) {
+            // Show notification
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                <strong>${data.title}:</strong> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        });
+    });
+</script>
+{% endblock %}
